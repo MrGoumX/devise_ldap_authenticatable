@@ -15,7 +15,7 @@ module Devise
         return fail(:invalid) unless resource
 
         if resource.persisted?
-          if validate(resource) { resource.valid_ldap_authentication?(password) }
+          if validate_with_failover?(resource)
             remember_me(resource)
             resource.after_ldap_authentication
             success!(resource)
@@ -25,12 +25,21 @@ module Devise
         end
 
         if resource.new_record?
-          if validate(resource) { resource.valid_ldap_authentication?(password) }
+          if validate_with_failover?(resource)
             return fail(:not_found_in_database) # Valid credentials
           else
             return fail(:invalid) # Invalid credentials
           end
         end
+      end
+
+      private
+
+      def validate_with_failover?(resource)
+        if ::Devise.ldap_allow_failover
+          return resource.valid_ldap_authentication?(password)
+        end
+        validate(resource) { resource.valid_ldap_authentication?(password) }
       end
     end
   end
